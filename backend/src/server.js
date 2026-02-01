@@ -16,9 +16,12 @@ import aiRoutes from "./routes/aiRoutes.js";
 import { handleStripeWebhook } from "./controllers/subscriptionController.js";
 import cookieParser from "cookie-parser";
 
+console.log("Starting server...");
 dotenv.config();
 const app = express();
+console.log("Connecting to database...");
 await connectDB();
+console.log("Database connected.");
 
 
 app.use(cors());

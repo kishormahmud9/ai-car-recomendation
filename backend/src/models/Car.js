@@ -26,6 +26,9 @@ const carSchema = new Schema(
     make: { type: String, index: true },
     model: { type: String, index: true },
     brand: { type: String, index: true },
+    subtitle: { type: String, trim: true },
+    detailsUrl: { type: String, trim: true },
+    images: [{ type: String }],
     trim: { type: String },
     year: { type: Number, index: true },
     image: { type: String },
@@ -51,11 +54,28 @@ const carSchema = new Schema(
     // Structured specifications
     specs: {
       engineCC: Number,
-      horsepower: Number,
-      torque: Number,
+      engineSize: { type: String },
+      power: { type: String },
+      horsepower: { type: Number },
+      torque: { type: Number },
+      gearbox: { type: String },
+      gears: { type: String },
+      cylinders: { type: String },
+      fuelConsumption: { type: String },
+      emissions: { type: String },
+      emptyWeight: { type: String },
+      firstRegistration: { type: String },
       doors: Number,
       seats: Number,
       // add more as needed
+    },
+
+    // Seller information from scraper
+    sellerInfo: {
+      companyName: { type: String, trim: true },
+      contactName: { type: String, trim: true },
+      location: { type: String, trim: true },
+      phone: [{ type: String }],
     },
 
     // Location for filtering and geospatial search

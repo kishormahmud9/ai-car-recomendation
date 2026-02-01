@@ -75,12 +75,10 @@ def extract_power(power_str):
         return None
 
 
-def extract_brand(title):
-    """Extract brand from car title"""
-    if not title:
-        return None
-    
-    title_lower = title.lower()
+def extract_brand(scraped_car):
+    """Extract brand from car title or URL"""
+    title = scraped_car.get('car_title')
+    url = scraped_car.get('details_url')
     
     brands = {
         'audi': 'Audi',
@@ -105,14 +103,45 @@ def extract_brand(title):
         'fiat': 'Fiat',
         'lancia': 'Lancia',
         'alfa romeo': 'Alfa Romeo',
-        'suzuki': 'Suzuki'
+        'suzuki': 'Suzuki',
+        'mitsubishi': 'Mitsubishi',
+        'land rover': 'Land Rover',
+        'jaguar': 'Jaguar',
+        'lexus': 'Lexus',
+        'mini': 'Mini',
+        'smart': 'Smart',
+        'dacia': 'Dacia',
+        'porsche': 'Porsche',
+        'tesla': 'Tesla',
+        'jeep': 'Jeep',
+        'subaru': 'Subaru',
+        'chevrolet': 'Chevrolet',
+        'chrysler': 'Chrysler',
+        'dodge': 'Dodge',
+        'ferrari': 'Ferrari',
+        'lamborghini': 'Lamborghini',
+        'maserati': 'Maserati',
+        'bentley': 'Bentley',
+        'aston martin': 'Aston Martin'
     }
-    
-    for key, value in brands.items():
-        if key in title_lower:
-            return value
+
+    # Try title first
+    if title:
+        title_lower = title.lower()
+        for key, value in brands.items():
+            if key in title_lower:
+                return value
+                
+    # Try URL fallback
+    if url:
+        url_lower = url.lower()
+        for key, value in brands.items():
+            # Check for brand in URL path (e.g., /offers/audi-q2-...)
+            if f"/{key}-" in url_lower or f"/{key}_" in url_lower or f"-{key}-" in url_lower:
+                return value
     
     return None
+
 
 
 def normalize_fuel_type(fuel_str):
@@ -157,7 +186,8 @@ def convert_scraped_car(scraped_car):
         "power_kw": extract_power(technical.get('Power')),
         
         # Brand & fuel (CRITICAL for recommendations)
-        "brand": extract_brand(scraped_car.get('car_title')),
+        "brand": extract_brand(scraped_car),
+
         "fuel_type": normalize_fuel_type(energy.get('Fuel_type')),
         
         # Important specs

@@ -199,36 +199,55 @@ export const importScrapedCars = async (req, res, next) => {
       // ==========================
       // 3) BASIC MAPPING (cleaned title + validated price)
       // ==========================
+      // Specs data extraction
+      const scraperSpecs = scraped.specs || {};
+      const techData = scraped.Technical_Data || {};
+      const basicData = scraped.Basic_Data || {};
+      const energyData = scraped.Energy_Consumption || {};
+      const sellerInfoRaw = scraped.seller_info || {};
+
       const mapped = {
         dealerId: scraped.dealerId || undefined,
         sellerUserId: scraped.sellerUserId || undefined,
-        title: cleanedTitle, // এখানে clean করা title use করছি
+        title: cleanedTitle,
+        subtitle: scraped.car_subtitle || scraped.subtitle || "",
+        detailsUrl: scraped.details_url || scraped.url || "",
+        images: Array.isArray(scraped.all_images) ? scraped.all_images : (Array.isArray(scraped.images) ? scraped.images : []),
         make: scraped.make || scraped.brand || "",
         model: scraped.model || "",
         brand: scraped.brand || "",
         trim: scraped.trim || scraped.vehicleTrim || "",
-        year:
-          scraped.year_numeric || scraped.year
-            ? Number(scraped.year || scraped.year_numeric)
-            : undefined,
-        price: numericPrice, // আগের numericPrice use করছি (verified)
+        year: (scraped.year_numeric || scraped.year) ? Number(scraped.year || scraped.year_numeric) : undefined,
+        price: numericPrice,
         currency: scraped.currency || "EUR",
-        mileage:
-          scraped.mileage_numeric || scraped.mileage
-            ? Number(scraped.mileage || scraped.mileage_numeric)
-            : undefined,
+        mileage: (scraped.mileage_numeric || scraped.mileage) ? Number(scraped.mileage || scraped.mileage_numeric) : undefined,
         condition: scraped.condition || undefined,
         fuelType: scraped.fuelType || undefined,
         transmission: scraped.transmission || undefined,
-        bodyType: scraped.bodyType || undefined,
-        driveType: scraped.driveType || undefined,
-        color: scraped.color || undefined,
-        features: Array.isArray(scraped.features)
-          ? scraped.features
-          : scraped.features
-            ? [scraped.features]
-            : [],
-        specs: scraped.specs || {},
+        bodyType: scraped.bodyType || (scraped.Basic_Data && scraped.Basic_Data.Body_type) || undefined,
+        driveType: scraped.driveType || (scraped.Basic_Data && scraped.Basic_Data.Drivetrain) || undefined,
+        color: scraped.color || (scraped.Colour_and_Upholstery && scraped.Colour_and_Upholstery.Colour) || undefined,
+        features: Array.isArray(scraped.features) ? scraped.features : (scraped.features ? [scraped.features] : []),
+        specs: {
+          engineCC: scraperSpecs.engineCC || (techData.Engine_size ? parseInt(techData.Engine_size) : undefined),
+          engineSize: techData.Engine_size || scraped.engine_size || "",
+          power: techData.Power || (scraped.power_kw ? scraped.power_kw.toString() : ""),
+          gearbox: techData.Gearbox || scraped.gearbox || "",
+          gears: techData.Gears || "",
+          cylinders: techData.Cylinders || "",
+          fuelConsumption: energyData.Fuel_consumption || "",
+          emissions: energyData.CO2_emissions || "",
+          emptyWeight: techData.Empty_weight || "",
+          firstRegistration: (scraped.Vehicle_History && scraped.Vehicle_History.First_registration) || scraped.first_registration || "",
+          doors: basicData.Doors ? parseInt(basicData.Doors) : (scraped.doors || undefined),
+          seats: basicData.Seats ? parseInt(basicData.Seats) : (scraped.seats || undefined),
+        },
+        sellerInfo: {
+          companyName: sellerInfoRaw.company_name || sellerInfoRaw.companyName || "",
+          contactName: sellerInfoRaw.contact_name || sellerInfoRaw.contactName || "",
+          location: sellerInfoRaw.location || "",
+          phone: Array.isArray(sellerInfoRaw.phone) ? sellerInfoRaw.phone : [],
+        },
         description: scraped.description || scraped.raw_text || "",
         status: scraped.status || "published",
         source: {
