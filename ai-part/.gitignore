@@ -1,0 +1,25 @@
+# Environment
+.env
+.env.example
+venv/
+__pycache__/
+*.pyc
+
+# Data
+data/raw/*.json
+data/raw/*.csv
+data/backup/
+*.log
+
+# Models
+data/ml_models/*.joblib
+
+# IDE
+.vscode/
+.idea/
+*.swp
+backup_20252012_075527/
+progress_log.json
+scrapers/autoscout24_selenium_data.json
+scrapers/autoscout_page.html
+scrapers/autoscout_screenshot.png
