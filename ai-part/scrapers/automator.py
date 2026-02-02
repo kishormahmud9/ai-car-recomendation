@@ -17,8 +17,10 @@ load_dotenv()
 from autoscout24_working_scraper import main as run_scraper
 from scripts.convert_scraped_data import convert_all_data
 
+import time
+
 def push_to_backend(data_file):
-    """Send converted data to Node.js backend"""
+    """Send converted data to Node.js backend one by one"""
     node_url = os.getenv("NODE_API_URL", "http://localhost:5000/ai/import-cars")
     print(f"\n📡 Pushing data to: {node_url}")
     
@@ -29,21 +31,49 @@ def push_to_backend(data_file):
     with open(data_file, 'r', encoding='utf-8') as f:
         cars_data = json.load(f)
 
-    try:
-        # Send only the new/converted cars (the ones from convert_all_data)
-        # However, for simplicity, we send the whole file, backend handles upserts
-        payload = {"cars": cars_data}
-        response = requests.post(node_url, json=payload, timeout=60)
-        
-        if response.status_code == 200:
-            print(f"✅ Successfully synced {len(cars_data)} cars to database")
-            return True
-        else:
-            print(f"❌ Backend error ({response.status_code}): {response.text}")
-            return False
-    except Exception as e:
-        print(f"❌ Connection failed: {e}")
-        return False
+    print(f"📦 Total cars to sync: {len(cars_data)}")
+    success_count = 0
+    error_count = 0
+
+    for i, car in enumerate(cars_data, 1):
+        try:
+            # Send one car at a time, disable individual notifications
+            payload = {
+                "cars": [car],
+                "notify": False 
+            } 
+            response = requests.post(node_url, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                success_count += 1
+                if i % 10 == 0 or i == len(cars_data):
+                    print(f"  ✅ Progress: {i}/{len(cars_data)} synced...", end="\r")
+            else:
+                print(f"\n❌ Error at car {i} ({car.get('title')}): {response.text}")
+                error_count += 1
+            
+            # Small delay to prevent overwhelming the server
+            time.sleep(0.1)
+
+        except Exception as e:
+            print(f"\n❌ Connection error at car {i}: {e}")
+            error_count += 1
+            time.sleep(1) # Wait longer on error
+
+    # 4. Trigger Summary Notification
+    if success_count > 0:
+        try:
+            summary_url = node_url.replace("/import-cars", "/import-summary")
+            requests.post(summary_url, json={"count": success_count}, timeout=10)
+            print(f"\n🔔 Summary notification sent for {success_count} cars.")
+        except:
+            print("\n⚠️  Failed to send summary notification.")
+
+    print(f"\n\n📊 Sync Results:")
+    print(f"   - Success: {success_count}")
+    print(f"   - Failed:  {error_count}")
+    
+    return success_count > 0
 
 def run_automation():
     print("\n🚀 Starting Full Automation Cycle...")

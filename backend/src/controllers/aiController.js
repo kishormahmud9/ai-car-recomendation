@@ -133,6 +133,44 @@ export const importScrapedCars = async (req, res, next) => {
       await Promise.allSettled(notifPromises);
     };
 
+    // helper: Multiple cars summary notification
+    const notifyRecipientsSummary = async (count) => {
+      if (!recipients || recipients.length === 0 || count === 0) return;
+
+      const notifMessage = `🚀 Scraper Finished: ${count} new car${count > 1 ? 's' : ''} added/updated to the database.`;
+
+      const notifPromises = recipients.map(async (recipient) => {
+        try {
+          const notif = await Notification.create({
+            userId: recipient._id,
+            type: "alert",
+            message: notifMessage,
+            priority: "normal",
+            status: "unread",
+          });
+
+          const channelName = `private-user-${recipient._id.toString()}`;
+          try {
+            await pusher.trigger(channelName, "new-notification", {
+              notificationId: notif._id,
+              title: "Import Complete",
+              message: notifMessage,
+              createdAt: notif.createdAt,
+            });
+          } catch (pushErr) {
+            console.error("Pusher trigger failed for summary", recipient._id, pushErr);
+          }
+
+          return notif;
+        } catch (err) {
+          console.error("Failed to create summary notification for", recipient._id, err);
+          return null;
+        }
+      });
+
+      await Promise.allSettled(notifPromises);
+    };
+
     // এখানে আমরা notification গুলো পরে চালানোর জন্য queue তে রাখব
     const notificationTasks = [];
 
@@ -302,7 +340,7 @@ export const importScrapedCars = async (req, res, next) => {
       });
 
       // নতুন car (existing ছিল না) হলে notification task queue তে রেখে দিচ্ছি
-      if (!existing) {
+      if (!existing && req.body.notify !== false) {
         notificationTasks.push(
           notifyRecipientsForNewCar(carDoc, mapped).catch((notifyErr) => {
             console.error(
@@ -346,6 +384,54 @@ export const importScrapedCars = async (req, res, next) => {
     }
   } catch (error) {
     console.timeEnd("IMPORT_SCRAPED_CARS");
+    next(error);
+  }
+};
+
+// import summary notification
+export const importScrapedCarsSummary = async (req, res, next) => {
+  try {
+    const { count } = req.body;
+    
+    if (count === undefined) {
+      return res.status(400).json({ success: false, message: "Count is required" });
+    }
+
+    const recipients = await User.find({
+      status: "active",
+      role: { $in: ["admin", "user"] },
+    }).select("_id name email");
+
+    if (recipients.length > 0) {
+      const notifMessage = `🚀 Scraper Finished: ${count} new car${count > 1 ? 's' : ''} added/updated.`;
+      
+      const notifPromises = recipients.map(async (recipient) => {
+        try {
+          const notif = await Notification.create({
+            userId: recipient._id,
+            type: "alert",
+            message: notifMessage,
+            priority: "normal",
+            status: "unread",
+          });
+
+          const channelName = `private-user-${recipient._id.toString()}`;
+          await pusher.trigger(channelName, "new-notification", {
+            notificationId: notif._id,
+            title: "Import Success",
+            message: notifMessage,
+            createdAt: notif.createdAt,
+          });
+        } catch (err) {
+          console.error("Summary error", err);
+        }
+      });
+      
+      await Promise.allSettled(notifPromises);
+    }
+
+    res.status(200).json({ success: true, message: "Summary notification sent" });
+  } catch (error) {
     next(error);
   }
 };

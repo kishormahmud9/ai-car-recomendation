@@ -26,6 +26,7 @@ console.log("Database connected.");
 
 app.use(cors());
 app.use(express.json({
+  limit: "50mb",
   verify: (req, _res, buf) => {
     // only save raw body if content-type looks like JSON (optional)
     // You can always save for everything, but skip for huge uploads if needed.
@@ -52,7 +53,7 @@ app.use("/ai", aiRoutes);
 const PORT = process.env.PORT || 5000;
 
 app.get("/", (req, res) => {
-  res.send("Request From Server");
+  res.send("Drivest Backend is Running...");
 });
 
 // ✅ Error Handling Middleware

@@ -112,7 +112,7 @@ export const subscriptionSuccessTemplate = (name) => {
 };
 
 
-// Subscription success email template using the base template
+// Deactivate account email template
 export const deactivateMail = (name) => {
   const body = `
     <p>Your Account is now deactivate!</p>
@@ -125,5 +125,21 @@ export const deactivateMail = (name) => {
     body,
     buttonText: "Explore Now",
     buttonUrl: "drivest://login",
+  });
+};
+
+// Delete account email template
+export const deleteAccountMail = (name) => {
+  const body = `
+    <p>Your account has been successfully deleted from our platform. 🗑️</p>
+    <p>All your data has been removed. We're sorry to see you go!</p>
+    <p>Thank you for using our services.</p>
+  `;
+  return baseEmailTemplate({
+    name,
+    title: "Account Deleted",
+    body,
+    buttonText: null,
+    buttonUrl: null,
   });
 };

@@ -10,7 +10,7 @@ import {
   toggleFavorite,
 } from "../controllers/favoriteController.js";
 import {
-  deactivateUser,
+  deleteUser,
   editProfile,
   resetUserPassword,
 } from "../controllers/userProfileController.js";
@@ -78,7 +78,7 @@ userRoutes.put("/notification-read", markNotificationsAsRead);
 userRoutes.put("/notifications-all-read", markAllAsRead);
 userRoutes.delete("/notification/:id", deleteNotification);
 
-userRoutes.put("/deactivate", deactivateUser);
+userRoutes.delete("/delete-account", deleteUser);
 
 // brand related routes
 userRoutes.get("/get-brands", getAllCarBrands);

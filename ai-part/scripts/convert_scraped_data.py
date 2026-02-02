@@ -12,6 +12,24 @@ import re
 from datetime import datetime
 
 
+def clean_numeric(value):
+    """Extract numbers from strings like '20.500 €' or '150.000 km'"""
+    if not value or value == "N/A":
+        return None
+    try:
+        # Remove non-numeric characters except comma/dot
+        cleaned = "".join(c for c in str(value) if c.isdigit())
+        return int(cleaned) if cleaned else None
+    except:
+        return None
+
+def prune_na(data):
+    """Recursively remove 'N/A' or None values from dictionary"""
+    if not isinstance(data, dict):
+        return data
+    return {k: prune_na(v) for k, v in data.items() if v not in ["N/A", None]}
+
+
 def extract_price(price_str):
     """Extract numeric price from string like '€ 3,950'"""
     if not price_str:
@@ -193,8 +211,8 @@ def convert_scraped_car(scraped_car):
         # Important specs
         "gearbox": technical.get('Gearbox'),
         "first_registration": history.get('First_registration'),
-        "seats": basic.get('Seats'),
-        "doors": basic.get('Doors'),
+        "seats": clean_numeric(basic.get('Seats')),
+        "doors": clean_numeric(basic.get('Doors')),
         
         # Images & features
         "images": scraped_car.get('all_images', []),
@@ -218,7 +236,7 @@ def convert_scraped_car(scraped_car):
         "data_version": "2.0"
     }
     
-    return api_car
+    return prune_na(api_car)
 
 
 def validate_car(car):
