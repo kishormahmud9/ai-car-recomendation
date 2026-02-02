@@ -50,7 +50,7 @@ app.use("/subscription", isAuthenticated, isUser, subscriptionRoutes);
 
 app.use("/ai", aiRoutes);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 app.get("/", (req, res) => {
   res.send("Drivest Backend is Running...");
