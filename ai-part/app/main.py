@@ -1,6 +1,4 @@
 import threading
-import schedule
-import time
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -26,27 +24,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Scheduler Logic ---
-def run_scheduler():
-    # Schedule the automation to run every 7 days
-    schedule.every(7).days.do(run_automation)
-    print("⏰ Scheduler started: Scraper will run every 7 days.")
-    while True:
-        schedule.run_pending()
-        time.sleep(60) # Check every minute
-
-# Start scheduler in a separate thread on startup
-@app.on_event("startup")
-def startup_event():
-    scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
-    scheduler_thread.start()
+# --- Manual Scraper Logic ---
+# Note: For production, 7-day automated scraping should be handled via Linux CRON Jobs.
+# See deployment_guide.md for instructions.
 
 @app.get("/")
 async def root():
     return {
         "message": "Welcome to Drivest AI Scraper API",
         "status": "running",
-        "scheduler": "Active (Runs every 7 days)",
+        "scheduler": "Managed via OS Cron (Runs every 7 days)",
         "docs": "/docs",
         "endpoints": {
             "run_scraper": "/run-scraper (POST)",
