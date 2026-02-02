@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import requests
+import tempfile
 from dotenv import load_dotenv
 
 # Add current and parent directories to path
@@ -75,42 +76,60 @@ def push_to_backend(data_file):
     
     return success_count > 0
 
+LOCK_FILE = os.path.join(tempfile.gettempdir(), "ai_scraper.lock")
+
 def run_automation():
-    print("\n🚀 Starting Full Automation Cycle...")
-    
-    # 1. Run Scraper (Headless)
-    try:
-        print("\nStep 1: Running Scraper...")
-        run_scraper(headless=True)
-        print("✅ Scraper Finished Successfully")
-    except Exception as e:
-        print(f"❌ Scraper Failed: {e}")
+    # Double-run protection
+    if os.path.exists(LOCK_FILE):
+        # Check if process is actually running (optional but safer)
+        print(f"⚠️  Scraper is already running (Lock file found: {LOCK_FILE})")
         return
 
-    # 2. Run Data Converter
-    try:
-        print("\nStep 2: Converting Data for API...")
-        input_file = os.path.join(project_root, 'scrapers', 'output.json')
-        output_file = os.path.join(project_root, 'data', 'raw', 'cars_data.json')
-        convert_all_data(input_file, output_file)
-        print("✅ Data Conversion Finished Successfully")
-    except Exception as e:
-        print(f"❌ Data Conversion Failed: {e}")
-        return
+    # Create lock file
+    with open(LOCK_FILE, "w") as f:
+        f.write(str(os.getpid()))
 
-    # 3. Push to Database via API
     try:
-        print("\nStep 3: Syncing with Database...")
-        output_file = os.path.join(project_root, 'data', 'raw', 'cars_data.json')
-        success = push_to_backend(output_file)
-        if success:
-            print("✅ Database Sync Finished Successfully")
-        else:
-            print("⚠️  Database Sync Failed (Check backend status)")
-    except Exception as e:
-        print(f"❌ Database Sync Error: {e}")
+        print("\n🚀 Starting Full Automation Cycle...")
+        
+        # 1. Run Scraper (Headless)
+        try:
+            print("\nStep 1: Running Scraper...")
+            run_scraper(headless=True)
+            print("✅ Scraper Finished Successfully")
+        except Exception as e:
+            print(f"❌ Scraper Failed: {e}")
+            return
 
-    print("\n🎉 Automation Cycle Completed Successfully!")
+        # 2. Run Data Converter
+        try:
+            print("\nStep 2: Converting Data for API...")
+            input_file = os.path.join(project_root, 'scrapers', 'output.json')
+            output_file = os.path.join(project_root, 'data', 'raw', 'cars_data.json')
+            convert_all_data(input_file, output_file)
+            print("✅ Data Conversion Finished Successfully")
+        except Exception as e:
+            print(f"❌ Data Conversion Failed: {e}")
+            return
+
+        # 3. Push to Database via API
+        try:
+            print("\nStep 3: Syncing with Database...")
+            output_file = os.path.join(project_root, 'data', 'raw', 'cars_data.json')
+            success = push_to_backend(output_file)
+            if success:
+                print("✅ Database Sync Finished Successfully")
+            else:
+                print("⚠️  Database Sync Failed (Check backend status)")
+        except Exception as e:
+            print(f"❌ Database Sync Error: {e}")
+
+        print("\n🎉 Automation Cycle Completed Successfully!")
+
+    finally:
+        # Always remove lock file on exit
+        if os.path.exists(LOCK_FILE):
+            os.remove(LOCK_FILE)
 
 if __name__ == "__main__":
     run_automation()
