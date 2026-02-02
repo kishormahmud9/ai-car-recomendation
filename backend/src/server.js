@@ -37,13 +37,13 @@ app.use(cookieParser());
 
 app.post("/stripe/webhook", handleStripeWebhook);
 
-// ✅ Global routes
+// Global routes
 app.use("/", globalRoutes);
-// ✅ user related routes
+// user related routes
 app.use("/user", isAuthenticated, isUser, checkSubscription, userRoutes);
-// ✅ admin related routes
+// admin related routes
 app.use("/admin", isAuthenticated, isAdmin, adminRoutes);
-// ✅ Dealer related routes
+// Dealer related routes
 // app.use("/dealer", isAuthenticated, isDealer, dealerRoutes);
 app.use("/api", pusherRoutes);
 app.use("/subscription", isAuthenticated, isUser, subscriptionRoutes);

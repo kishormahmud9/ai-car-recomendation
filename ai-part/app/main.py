@@ -1,18 +1,20 @@
-from fastapi import FastAPI
+import threading
+import schedule
+import time
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
-from app.routes import router  
-from app.models import *  
+from scrapers.automator import run_automation
 
 # Load environment variables
 load_dotenv()
 
 # Create FastAPI app
 app = FastAPI(
-    title="Car Price Analysis API",
-    description="API for analyzing car prices and providing buy recommendations",
-    version="1.0.0"
+    title="Car Price Analysis & Scraper API",
+    description="API for analyzing car prices and automated scraping",
+    version="1.1.0"
 )
 
 # CORS middleware
@@ -24,28 +26,51 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Scheduler Logic ---
+def run_scheduler():
+    # Schedule the automation to run every 7 days
+    schedule.every(7).days.do(run_automation)
+    print("⏰ Scheduler started: Scraper will run every 7 days.")
+    while True:
+        schedule.run_pending()
+        time.sleep(60) # Check every minute
+
+# Start scheduler in a separate thread on startup
+@app.on_event("startup")
+def startup_event():
+    scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+    scheduler_thread.start()
+
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to Car Price Analysis API",
+        "message": "Welcome to Drivest AI Scraper API",
         "status": "running",
+        "scheduler": "Active (Runs every 7 days)",
         "docs": "/docs",
         "endpoints": {
+            "run_scraper": "/run-scraper (POST)",
             "analyze_cars": "/analyze-cars/",
             "compare_cars": "/compare-cars/",
             "ai_suggest": "/ai-suggest/",
-            "test": "/test-analysis/"
+            "health": "/health"
         }
     }
+
+@app.post("/run-scraper")
+async def trigger_scraper(background_tasks: BackgroundTasks):
+    """Manually trigger the scraper automation in the background"""
+    background_tasks.add_task(run_automation)
+    return {"message": "Scraper started in background"}
 
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy",
         "openai_key_set": bool(os.getenv("OPENAI_API_KEY")),
-        "thordata_key_set": bool(os.getenv("THORDATA_API_KEY"))
+        "node_api_url": os.getenv("NODE_API_URL")
     }
 
-# Import and include routes
+# Include routes
 from app.routes import router
 app.include_router(router)
