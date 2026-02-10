@@ -25,7 +25,7 @@ function isValidHttpUrl(str) {
 export const analyzeCars = async (req, res, next) => {
   try {
     const response = await axios.post(
-      `${PYTHON_API_BASE}/analyze-cars/`,
+      `${PYTHON_API_BASE}/analyze-cars`,
       req.body
     );
     res.status(200).json(response.data);
@@ -38,7 +38,7 @@ export const analyzeCars = async (req, res, next) => {
 export const compareCarsAI = async (req, res, next) => {
   try {
     const response = await axios.post(
-      `${PYTHON_API_BASE}/compare-cars/`,
+      `${PYTHON_API_BASE}/compare-cars`,
       req.body
     );
     res.status(200).json(response.data);
@@ -51,7 +51,7 @@ export const compareCarsAI = async (req, res, next) => {
 export const aiSuggest = async (req, res, next) => {
   try {
     const response = await axios.post(
-      `${PYTHON_API_BASE}/ai-suggest/`,
+      `${PYTHON_API_BASE}/ai-suggest`,
       req.body
     );
     res.status(200).json(response.data);
