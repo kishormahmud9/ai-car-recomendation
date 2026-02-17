@@ -102,6 +102,7 @@ export default function Page() {
   const [busyRow, setBusyRow] = useState({}); // { [id]: "approve"|"reject" }
 
   const [userCount, setUserCount] = useState(0);
+  const [totalIncome, setTotalIncome] = useState(0);
   const [verificationUsers, setVerificationUsers] = useState([]);
 
   useEffect(() => {
@@ -117,8 +118,9 @@ export default function Page() {
           },
         });
         const json = await safeJson(res);
-        const list = Array.isArray(json) ? json : json?.data || json?.cars || [];
-        if (mounted) setCarCount(Array.isArray(list) ? list.length : 0);
+        // Use meta.total from searchCars paginated response
+        const total = json?.meta?.total ?? 0;
+        if (mounted) setCarCount(total);
       } catch (err) {
         console.error("fetchCarCount error:", err);
         if (mounted) setCarCount(0);
@@ -141,6 +143,25 @@ export default function Page() {
       } catch (err) {
         console.error("fetchUserCount error:", err);
         if (mounted) setUserCount(0);
+      }
+    };
+
+    const fetchTotalIncome = async () => {
+      try {
+        const token = Cookies.get("token");
+        const res = await fetch(`${API_BASE}/admin/invoices`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        const json = await safeJson(res);
+        const list = Array.isArray(json?.data) ? json.data : [];
+        const sum = list.reduce((acc, inv) => acc + (Number(inv.amount) || 0), 0);
+        if (mounted) setTotalIncome(sum);
+      } catch (err) {
+        console.error("fetchTotalIncome error:", err);
+        if (mounted) setTotalIncome(0);
       }
     };
 
@@ -170,6 +191,7 @@ export default function Page() {
 
     fetchCarCount();
     fetchUserCount();
+    fetchTotalIncome();
     fetchVerificationUsers();
 
     return () => {
@@ -319,7 +341,7 @@ export default function Page() {
         <div className="bg-white rounded-[10px] flex flex-col justify-center items-center py-8 gap-[14px] col-span-4 ">
           <p className="font-inter font-medium text-[20px] text-[#333333]">Total Income</p>
           <Image src={income} alt="Total Income" />
-          <p className="font-inter font-semibold text-[24px] text-[#333333]">$2,500</p>
+          <p className="font-inter font-semibold text-[24px] text-[#333333]">${totalIncome.toLocaleString()}</p>
         </div>
 
         <div className="bg-white rounded-[10px] flex flex-col justify-center items-center py-8 gap-[14px] col-span-4 ">
