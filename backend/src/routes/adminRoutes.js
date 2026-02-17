@@ -11,7 +11,7 @@ import {
 import { resetPassword } from "../controllers/authController.js";
 import { getAllTicket } from "../controllers/ticketController.js";
 import { deleteCar, getAllCar, searchCars } from "../controllers/carController.js";
-import { deleteNotification } from "../controllers/notificationController.js";
+import { deleteNotification, markAllAsRead, markNotificationsAsRead } from "../controllers/notificationController.js";
 import parser from "../storage/imageParser.js";
 import { editProfile, resetUserPassword } from "../controllers/userProfileController.js";
 import { getAllInvoices } from "../controllers/subscriptionController.js";
@@ -44,8 +44,10 @@ adminRoutes.get("/tickets", getAllTicket);
 adminRoutes.get("/cars", searchCars);
 adminRoutes.delete("/car/:id", deleteCar);
 
-// Notification delete routes
+// Notification routes
 adminRoutes.delete("/notification/:id", deleteNotification);
+adminRoutes.put("/notification-read", markNotificationsAsRead);
+adminRoutes.put("/notifications-all-read", markAllAsRead);
 
 adminRoutes.get("/invoices", getAllInvoices);
 

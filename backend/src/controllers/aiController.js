@@ -171,8 +171,9 @@ export const importScrapedCars = async (req, res, next) => {
       await Promise.allSettled(notifPromises);
     };
 
-    // এখানে আমরা notification গুলো পরে চালানোর জন্য queue তে রাখব
+    // এখানে আমরা notification গুলো পরে চালানোর জন্য queue তে রাখব (Not used for individual cars anymore)
     const notificationTasks = [];
+    let newCarsCount = 0;
 
     // ===== মূল import loop =====
     for (const scraped of cars) {
@@ -339,17 +340,9 @@ export const importScrapedCars = async (req, res, next) => {
         imagesCount: imageUrl ? 1 : 0,
       });
 
-      // নতুন car (existing ছিল না) হলে notification task queue তে রেখে দিচ্ছি
+      // নতুন car (existing ছিল না) হলে count বাড়াচ্ছি
       if (!existing && req.body.notify !== false) {
-        notificationTasks.push(
-          notifyRecipientsForNewCar(carDoc, mapped).catch((notifyErr) => {
-            console.error(
-              "Notification sending failed for car",
-              carDoc._id,
-              notifyErr
-            );
-          })
-        );
+        newCarsCount++;
       }
     }
 
@@ -364,6 +357,12 @@ export const importScrapedCars = async (req, res, next) => {
     // ==========================
     // Background এ notifications
     // ==========================
+    if (newCarsCount > 0) {
+      notifyRecipientsSummary(newCarsCount).catch((err) => {
+        console.error("[IMPORT_SCRAPED_CARS] Summary notification failed:", err);
+      });
+    }
+
     if (notificationTasks.length > 0) {
       Promise.allSettled(notificationTasks)
         .then((results) => {
