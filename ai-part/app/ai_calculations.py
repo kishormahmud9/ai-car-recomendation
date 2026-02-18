@@ -29,7 +29,7 @@ MODEL_NAME = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DATA_PATH = os.path.join(
-    BASE_DIR, "data", "raw", "cars_data.json"
+    BASE_DIR, "app", "Cars data api ready.json"
 )
 
 ML_MODEL_PATH = os.path.join(
@@ -205,18 +205,25 @@ def calculate_profit_and_recommendation(car_data: dict) -> dict:
     mileage = safe_float(car_data.get("mileage_numeric"), 0)
 
     total_costs = 300 + min(age * 50, 500) + (mileage / 100000) * 200
-    profit = estimated_value - (price + total_costs)
+    raw_profit = estimated_value - (price + total_costs)
 
-    if profit > 3000 and risk_score < 3:
+    # Profit is always >= 0; negative raw profit means car is overpriced
+    profit = max(0.0, raw_profit)
+
+    # Recommendation based on raw_profit (captures overpriced cases)
+    # and risk_score for quality signal
+    if raw_profit > 3000 and risk_score < 3:
         rec = "STRONG BUY"
-    elif profit > 1500 and risk_score < 5:
+    elif raw_profit > 1500 and risk_score < 5:
         rec = "BUY"
-    elif profit > 500:
+    elif raw_profit > 500:
         rec = "CONSIDER"
-    elif profit > -500:
+    elif raw_profit > -500:
         rec = "FAIR DEAL"
+    elif risk_score >= 5:
+        rec = "HIGH RISK"
     else:
-        rec = "DON'T BUY"
+        rec = "OVERPRICED"
 
     return {
         "estimated_market_value": estimated_value,
@@ -275,9 +282,47 @@ def predict_car_price_ml(car_data: dict) -> float:
 # =========================
 # AI SUGGESTION (COMPLETELY SAFE VERSION)
 # =========================
+# Brand / country keyword mapping for smart filtering
+BRAND_KEYWORDS = {
+    "german": ["BMW", "Mercedes", "Audi", "Volkswagen", "Porsche"],
+    "french": ["Peugeot", "Citroen", "Renault"],
+    "japanese": ["Toyota", "Honda", "Mazda", "Nissan", "Mitsubishi"],
+    "italian": ["Fiat", "Alfa Romeo", "Ferrari", "Lancia"],
+    "swedish": ["Volvo", "Saab"],
+    "american": ["Ford", "Chevrolet", "Jeep", "Dodge"],
+    "korean": ["Hyundai", "Kia"],
+    "electric": ["Tesla"],
+}
+
+
+def _extract_brand_filter(prompt: str) -> List[str]:
+    """Extract brand names or country keywords from user prompt"""
+    prompt_lower = prompt.lower()
+    matched_brands = []
+
+    # Country keywords
+    for country, brands in BRAND_KEYWORDS.items():
+        if country in prompt_lower:
+            matched_brands.extend(brands)
+
+    # Direct brand names
+    all_brands = [
+        "BMW", "Mercedes", "Audi", "Volkswagen", "Porsche",
+        "Peugeot", "Citroen", "Renault", "Toyota", "Honda",
+        "Mazda", "Nissan", "Volvo", "Ford", "Jeep", "Hyundai",
+        "Kia", "Skoda", "Seat", "Fiat", "Tesla", "Lynk",
+    ]
+    for brand in all_brands:
+        if brand.lower() in prompt_lower:
+            matched_brands.append(brand)
+
+    return list(set(matched_brands))  # deduplicate
+
+
 async def get_ai_suggestion(prompt: str, budget: Optional[float] = None) -> str:
     """
-    COMPLETELY SAFE: Uses YOUR REAL scraped cars with full None protection
+    Conversational AI car suggestion — short replies, one recommendation at a time.
+    Supports brand/country filtering (e.g. 'German car', 'BMW or Mercedes').
     """
     try:
         # Load cars
@@ -302,16 +347,29 @@ async def get_ai_suggestion(prompt: str, budget: Optional[float] = None) -> str:
             )
             return response.choices[0].message.content + "\n\n⚠️ Note: No car database available."
         
+        # Filter by brand/country keywords from prompt
+        brand_filter = _extract_brand_filter(prompt)
+
         # Filter by budget (SAFE)
-        if budget:
-            affordable_cars = []
+        affordable_cars = []
+        for car in all_cars:
+            price = car.get('price_numeric')
+            within_budget = (not budget) or (price and isinstance(price, (int, float)) and price <= budget)
+            brand_ok = True
+            if brand_filter:
+                car_brand = (car.get('brand') or '').strip()
+                brand_ok = any(b.lower() in car_brand.lower() for b in brand_filter)
+            if within_budget and brand_ok:
+                affordable_cars.append(car)
+        
+        # Fallback: if brand filter returned nothing, use all within budget
+        if brand_filter and not affordable_cars:
             for car in all_cars:
                 price = car.get('price_numeric')
-                if price and isinstance(price, (int, float)) and price <= budget:
+                within_budget = (not budget) or (price and isinstance(price, (int, float)) and price <= budget)
+                if within_budget:
                     affordable_cars.append(car)
-        else:
-            affordable_cars = all_cars
-        
+
         if not affordable_cars:
             prices = [c.get('price_numeric') for c in all_cars if c.get('price_numeric')]
             min_price = min(prices) if prices else 0
@@ -378,45 +436,38 @@ Analysis:
 🔗 Link: {url[:60]}...
 """
         
-        # Build prompt
-        budget_display = f"€{budget:,.0f}" if budget else "Not specified"
-        enhanced_prompt = f"""User Question: {prompt}
-Budget: {budget_display}
+        # Build conversational prompt
+        budget_display = f"€{budget:,.0f}" if budget else "any budget"
+        brand_note = f" (filtered for: {', '.join(brand_filter)}" + ")" if brand_filter else ""
+        enhanced_prompt = f"""Customer asked: "{prompt}"
+Budget: {budget_display}{brand_note}
 
 {cars_context}
 
-Task: Recommend specific cars from above with actual prices and reasons."""
+Give a short, friendly reply. Pick the single best car from the list above. One sentence why it's good. Then ask one follow-up question to help narrow down further."""
 
-        # Call OpenAI
+        # Call OpenAI — short conversational reply
         client = openai.OpenAI(api_key=openai.api_key)
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
                 {
-                    "role": "system", 
-                    "content": "You are a car advisor. Recommend specific cars from the list with actual prices and explain why."
+                    "role": "system",
+                    "content": (
+                        "You are a friendly car buying assistant in a live chat. "
+                        "Keep replies SHORT (2-4 sentences max). "
+                        "Recommend ONE car at a time with its price. "
+                        "End with exactly ONE follow-up question to learn more about what the customer needs. "
+                        "Never write long lists or bullet points."
+                    )
                 },
                 {"role": "user", "content": enhanced_prompt},
             ],
             temperature=0.7,
-            max_tokens=600,
+            max_tokens=200,
         )
-        
-        suggestion = response.choices[0].message.content
-        
-        # Add footer (SAFE)
-        prices_in_budget = [safe_float(c.get('price_numeric'), 0) for c in affordable_cars]
-        min_price = min(prices_in_budget) if prices_in_budget else 0
-        max_price = max(prices_in_budget) if prices_in_budget else 0
-        
-        suggestion += f"""
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 Based on {len(affordable_cars)} real cars
-💰 Range: €{min_price:,.0f} - €{max_price:,.0f}
-🔄 Updated: {datetime.now().strftime('%Y-%m-%d')}"""
-        
-        return suggestion
+        return response.choices[0].message.content
         
     except Exception as e:
         error_type = type(e).__name__
