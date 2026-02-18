@@ -85,9 +85,8 @@ export default function AgentApprovalTable() {
 
         const mapped = list.map((c, i) => ({
           id: c._id ?? c.id ?? `${i}`,
-          sl: c.sl || `#${String(c._id || c.id || i).slice(-4)}`,
+          sl: i + 1,
           car: c.carName || c.name || c.model || c.title || "Unknown Car",
-          location: normalizeLocation(c.location),
           year: c.year,
           brand: c.brand,
           mileage: c.mileage,
@@ -217,16 +216,15 @@ export default function AgentApprovalTable() {
       <table className="min-w-[920px] w-full text-left table-fixed mt-[18px]">
         <thead>
           <tr className="bg-white text-[18px] font-inter font-semibold text-[#333333]">
-            <th className="py-3 pr-4 w-[8%]">SL No</th>
-            <th className="py-3 pr-2 w-[15%]">Car Name</th>
-            <th className="py-3 pr-2 w-[12%]">Location</th>
+            <th className="py-3 pr-4 w-[10%]">SL No</th>
+            <th className="py-3 pr-2 w-[22%]">Car Name</th>
             <th className="py-3 pr-2 w-[8%]">Year</th>
             <th className="py-3 pr-2 w-[12%]">Brand</th>
             <th className="py-3 pr-2 w-[10%]">Price</th>
             <th className="py-3 pr-2 w-[10%]">Mileage</th>
             <th className="py-3 pr-2 w-[10%]">Image</th>
             <th className="py-3 pr-2 w-[10%]">Date Added</th>
-            <th className="py-3 pr-2 w-[10%]">Action</th>
+            <th className="py-3 pr-2 w-[8%] text-center">Action</th>
           </tr>
         </thead>
 
@@ -246,9 +244,6 @@ export default function AgentApprovalTable() {
               </td>
               <td className="py-4 pr-4 text-[#333333] font-inter text-[16px]">
                 {r.car}
-              </td>
-              <td className="py-4 pr-4 text-[#333333] font-inter text-[16px]">
-                {r.location}
               </td>
               <td className="py-4 pr-4 text-[#333333] font-inter text-[16px]">
                 {r.year ?? "N/A"}

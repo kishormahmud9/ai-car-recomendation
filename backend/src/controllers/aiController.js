@@ -60,7 +60,37 @@ export const aiSuggest = async (req, res, next) => {
   }
 };
 
-// inport cars
+// Helper to check if an image URL is reachable
+const checkImageReachability = async (url) => {
+  if (!url) return false;
+  try {
+    // We use HEAD request to save bandwidth and timeout after 3 seconds
+    const response = await axios.head(url, { 
+      timeout: 3000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    return response.status >= 200 && response.status < 400;
+  } catch (err) {
+    // If HEAD fails, try GET as a fallback (some servers block HEAD)
+    try {
+      const response = await axios.get(url, { 
+        timeout: 3000, 
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        // We only need the response header/status
+        validateStatus: (status) => status < 500 
+      });
+      return response.status >= 200 && response.status < 400;
+    } catch (innerErr) {
+      return false;
+    }
+  }
+};
+
+// import cars
 export const importScrapedCars = async (req, res, next) => {
   // console.time("IMPORT_SCRAPED_CARS");
   try {
@@ -215,16 +245,21 @@ export const importScrapedCars = async (req, res, next) => {
         imageUrl = "";
       }
 
+      // 1.5) Check if image is actually REACHABLE (Broken link check)
+      const isReachable = await checkImageReachability(imageUrl);
+      
       // basic validation: title থাকতে হবে, price থাকতে হবে, image valid থাকতে হবে
       if (
         !rawTitle || // empty title
         !Number.isFinite(numericPrice) || // invalid price
-        !imageUrl // no valid image
+        !imageUrl || // no image at all
+        !isReachable // broken image link
       ) {
-        console.log("Skipping car due to invalid data", {
+        console.log("Skipping car due to invalid data or broken image", {
           title: rawTitle,
           rawPrice,
           imageUrl,
+          isReachable
         });
         continue; // এই car টাকে একেবারেই save করব না
       }
