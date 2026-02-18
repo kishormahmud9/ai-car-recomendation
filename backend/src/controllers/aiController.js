@@ -261,7 +261,7 @@ export const importScrapedCars = async (req, res, next) => {
         currency: scraped.currency || "EUR",
         mileage: (scraped.mileage_numeric || scraped.mileage) ? Number(scraped.mileage || scraped.mileage_numeric) : undefined,
         condition: scraped.condition || undefined,
-        fuelType: scraped.fuelType || undefined,
+        fuelType: scraped.fuelType || scraped.fuel_type || undefined,
         transmission: scraped.transmission || undefined,
         bodyType: scraped.bodyType || (scraped.Basic_Data && scraped.Basic_Data.Body_type) || undefined,
         driveType: scraped.driveType || (scraped.Basic_Data && scraped.Basic_Data.Drivetrain) || undefined,
