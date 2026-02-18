@@ -92,17 +92,21 @@ export default function Page() {
   const router = useRouter();
   const pathname = usePathname();
 
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 11 }, (_, i) => (currentYear - i).toString());
+
   const [ready, setReady] = useState(false);
   const [yearIncome, setYearIncome] = useState(false);
   const [yearGrowth, setYearGrowth] = useState(false);
-  const [yearValue, setYearValue] = useState("2025");
-  const [yearValue2, setYearValue2] = useState("2025");
+  const [yearValue, setYearValue] = useState(currentYear.toString());
+  const [yearValue2, setYearValue2] = useState(currentYear.toString());
   
   const [carCount, setCarCount] = useState(0);
   const [busyRow, setBusyRow] = useState({}); // { [id]: "approve"|"reject" }
 
   const [userCount, setUserCount] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
+  const [incomeChartData, setIncomeChartData] = useState([]);
   const [verificationUsers, setVerificationUsers] = useState([]);
 
   useEffect(() => {
@@ -200,6 +204,44 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
+    const fetchIncomeData = async () => {
+      try {
+        const token = Cookies.get("token");
+        const res = await fetch(`${API_BASE}/admin/invoices`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        const json = await safeJson(res);
+        const list = Array.isArray(json?.data) ? json.data : [];
+
+        // Aggregate by month for the selected year
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const monthlySum = Array(12).fill(0);
+
+        list.forEach((inv) => {
+          const date = new Date(inv.paidAt || inv.createdAt);
+          if (date.getFullYear() === Number(yearValue)) {
+            monthlySum[date.getMonth()] += Number(inv.amount) || 0;
+          }
+        });
+
+        const chartData = months.map((m, idx) => ({
+          name: m,
+          uv: monthlySum[idx],
+        }));
+
+        setIncomeChartData(chartData);
+      } catch (err) {
+        console.error("fetchIncomeData error:", err);
+      }
+    };
+
+    fetchIncomeData();
+  }, [yearValue]);
+
+  useEffect(() => {
     const token = Cookies.get("token");
     if (!token) {
       router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
@@ -210,8 +252,6 @@ export default function Page() {
   }, [router, pathname]);
 
   if (!ready) return null;
-
-  const years = ["2025", "2024", "2023", "2022", "2021", "2020"];
 
   function Badge({ children, tone }) {
     const color =
@@ -365,7 +405,7 @@ export default function Page() {
               </div>
             </div>
           </div>
-          <div className="h-full"><IncomeBar /></div>
+          <div className="h-full"><IncomeBar data={incomeChartData} /></div>
         </div>
 
         <div className="col-span-6 bg-white rounded-[5px] py-[25px] px-5">

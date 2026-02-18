@@ -2,22 +2,7 @@
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const data = [
-  { name: 'Jan', uv: 80 },
-  { name: 'Feb', uv: 60 },
-  { name: 'Mar', uv: 100 },
-  { name: 'Apr', uv: 70 },
-  { name: 'May', uv: 80 },
-  { name: 'June', uv: 90 },
-  { name: 'July', uv: 70 },
-  { name: 'Aug', uv: 60 },
-  { name: 'Sep', uv: 80 },
-  { name: 'Oct', uv: 90 },
-  { name: 'Nov', uv: 70 },
-  { name: 'Dec', uv: 90 },
-];
-
-const IncomeBar = () => {
+const IncomeBar = ({ data = [] }) => {
   return (
     <ResponsiveContainer width="100%" height={250} style={{ border: 'none' }}>
       <AreaChart

@@ -327,14 +327,22 @@ def main(headless=False):
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     
-    # Initialize driver
+    # Initialize variables before try block
+    total_new_scraped = 0
     driver = None
     
     try:
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()), 
-            options=options
-        )
+        # 1. Initialize Chrome driver
+        try:
+            driver = webdriver.Chrome(
+                service=Service(ChromeDriverManager().install()), 
+                options=options
+            )
+        except Exception as e:
+            print(f"\n❌ Driver Initialization Failed: {e}")
+            print("💡 Tip: Ensure Google Chrome is installed on the server.")
+            return # Exit early
+            
         wait = WebDriverWait(driver, 20)
         
         print("✅ Chrome driver initialized\n")
@@ -347,7 +355,6 @@ def main(headless=False):
         print(f"📂 Loaded {len(existing_data)} existing cars\n")
 
         results = existing_data
-        total_new_scraped = 0
 
         for page in range(1, MAX_PAGES + 1):
             page_url = build_page_url(LISTING_URL, page)
