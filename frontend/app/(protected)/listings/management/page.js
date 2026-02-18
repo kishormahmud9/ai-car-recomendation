@@ -40,6 +40,8 @@ export default function AgentApprovalTable() {
   const [confirmId, setConfirmId] = useState(null);
   const [confirmName, setConfirmName] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]); // <-- New state
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [toast, setToast] = useState(null); // { type: "success" | "error", message }
 
   const getAuthHeader = () => {
@@ -85,7 +87,6 @@ export default function AgentApprovalTable() {
 
         const mapped = list.map((c, i) => ({
           id: c._id ?? c.id ?? `${i}`,
-          sl: i + 1,
           car: c.carName || c.name || c.model || c.title || "Unknown Car",
           year: c.year,
           brand: c.brand,
@@ -173,6 +174,7 @@ export default function AgentApprovalTable() {
       }
 
       setRows((prev) => prev.filter((r) => r.id !== confirmId));
+      setSelectedIds((prev) => prev.filter((id) => id !== confirmId));
 
       setPage((p) => {
         const newTotalPages = Math.max(
@@ -189,6 +191,49 @@ export default function AgentApprovalTable() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} cars?`)) return;
+
+    try {
+      setIsBulkDeleting(true);
+      const res = await fetch(`${API_BASE}/admin/cars-bulk-delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Bulk delete failed");
+      }
+
+      setRows((prev) => prev.filter((r) => !selectedIds.includes(r.id)));
+      setSelectedIds([]);
+      showToast("success", `${selectedIds.length} cars deleted successfully`);
+    } catch (e) {
+      showToast("error", e.message || "Bulk delete failed");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === currentRows.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(currentRows.map((r) => r.id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   return (
@@ -212,15 +257,39 @@ export default function AgentApprovalTable() {
         {err && <p className="text-sm text-red-600">{err}</p>}
       </div>
 
+      {/* Bulk Action */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-4 mt-4 mb-4 p-3 bg-slate-50 border border-slate-100 rounded-md">
+          <p className="text-sm font-medium text-slate-700">
+            {selectedIds.length} items selected
+          </p>
+          <button
+            onClick={handleBulkDelete}
+            disabled={isBulkDeleting}
+            className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+          >
+            {isBulkDeleting ? "Deleting..." : "Delete Selected"}
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <table className="min-w-[920px] w-full text-left table-fixed mt-[18px]">
         <thead>
           <tr className="bg-white text-[18px] font-inter font-semibold text-[#333333]">
-            <th className="py-3 pr-4 w-[10%]">SL No</th>
+            <th className="py-3 px-2 w-[5%]">
+              <input
+                type="checkbox"
+                checked={currentRows.length > 0 && selectedIds.length === currentRows.length}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-gray-300 text-[#015093] focus:ring-[#015093]"
+              />
+            </th>
+            <th className="py-3 pr-4 w-[8%] text-center">SL No</th>
             <th className="py-3 pr-2 w-[22%]">Car Name</th>
-            <th className="py-3 pr-2 w-[8%]">Year</th>
+            <th className="py-3 pr-2 w-[8%] text-center">Year</th>
             <th className="py-3 pr-2 w-[12%]">Brand</th>
-            <th className="py-3 pr-2 w-[10%]">Price</th>
+            <th className="py-3 pr-2 w-[10%] text-center">Price</th>
             <th className="py-3 pr-2 w-[10%]">Mileage</th>
             <th className="py-3 pr-2 w-[10%]">Image</th>
             <th className="py-3 pr-2 w-[10%]">Date Added</th>
@@ -237,21 +306,29 @@ export default function AgentApprovalTable() {
             </tr>
           )}
 
-          {currentRows.map((r) => (
-            <tr key={r.id || r.sl} className="align-middle">
-              <td className="py-4 pr-4 text-[#333333] font-inter text-[16px] whitespace-nowrap">
-                {r.sl}
+          {currentRows.map((r, index) => (
+            <tr key={r.id} className="align-middle border-b border-slate-50 hover:bg-slate-50/50">
+              <td className="py-4 px-2">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(r.id)}
+                  onChange={() => toggleSelect(r.id)}
+                  className="h-4 w-4 rounded border-gray-300 text-[#015093] focus:ring-[#015093]"
+                />
+              </td>
+              <td className="py-4 pr-4 text-[#333333] font-inter text-[16px] whitespace-nowrap text-center">
+                {(page - 1) * PAGE_SIZE + index + 1}
               </td>
               <td className="py-4 pr-4 text-[#333333] font-inter text-[16px]">
                 {r.car}
               </td>
-              <td className="py-4 pr-4 text-[#333333] font-inter text-[16px]">
+              <td className="py-4 pr-4 text-[#333333] font-inter text-[16px] text-center">
                 {r.year ?? "N/A"}
               </td>
               <td className="py-4 pr-4 text-[#333333] font-inter text-[16px]">
                 {r.brand ?? "N/A"}
               </td>
-              <td className="py-4 pr-4 text-[#333333] font-inter text-[16px]">
+              <td className="py-4 pr-4 text-[#333333] font-inter text-[16px] text-center">
                 {r.price}
               </td>
               <td className="py-4 pr-4 text-[#333333] font-inter text-[16px]">

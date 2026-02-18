@@ -422,6 +422,39 @@ export const deleteCar = async (req, res, next) => {
   }
 };
 
+export const bulkDeleteCars = async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No IDs provided for bulk deletion",
+      });
+    }
+
+    // Validate all IDs
+    const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+    if (validIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid IDs provided",
+      });
+    }
+
+    const result = await Car.deleteMany({ _id: { $in: validIds } });
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} cars deleted successfully`,
+      count: result.deletedCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 export const getAllCarBrands = async (req, res, next) => {
   try {
